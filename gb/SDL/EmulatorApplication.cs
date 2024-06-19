@@ -13,6 +13,7 @@ public unsafe class EmulatorApplication : IDisposable
     nint texture;
     uint audio;
 
+    bool bootRomLoaded;
     bool run;
 
     public EmulatorApplication()
@@ -42,9 +43,7 @@ public unsafe class EmulatorApplication : IDisposable
         SDL_PauseAudioDevice(audio, 0);
 
         run = false;
-
-        string boot = "E:\\bios\\gb\\dmg_boot.bin";
-        gb.LoadBootROM(File.ReadAllBytes(boot));
+        bootRomLoaded = false;
     }
 
     public void Run()
@@ -122,8 +121,16 @@ public unsafe class EmulatorApplication : IDisposable
                         }
                         break;
                     case SDL_EventType.SDL_DROPFILE:
-                        gb.LoadROM(File.ReadAllBytes(Marshal.PtrToStringUTF8(e.drop.file)));
-                        run = true;
+                        if (bootRomLoaded)
+                        {
+                            gb.LoadROM(File.ReadAllBytes(Marshal.PtrToStringUTF8(e.drop.file)));
+                            run = true;
+                        }
+                        else
+                        {
+                            gb.LoadBootROM(File.ReadAllBytes(Marshal.PtrToStringUTF8(e.drop.file)));
+                            bootRomLoaded = true;
+                        }
                         break;
                 }
             }
