@@ -77,7 +77,9 @@ void gb_bus_write(gb_bus *bus, uint16_t address, uint8_t data) {
 
     if (address < 0x8000) {
         if (bus->cartridge != nullptr) {
-            bus->cartridge->cart_write(bus->cartridge, address, data);
+            if (bus->cartridge->cart_write != nullptr) {
+                bus->cartridge->cart_write(bus->cartridge, address, data);
+            }
         }
     }
     else if (address < 0xa000) {
@@ -85,7 +87,9 @@ void gb_bus_write(gb_bus *bus, uint16_t address, uint8_t data) {
     }
     else if (address < 0xc000) {
         if (bus->cartridge != nullptr) {
-            bus->cartridge->cart_write(bus->cartridge, address, data);
+            if (bus->cartridge->cart_write != nullptr) {
+                bus->cartridge->cart_write(bus->cartridge, address, data);
+            }
         }
     }
     else if (address < 0xd000) {
@@ -134,7 +138,9 @@ uint8_t gb_bus_read(gb_bus *bus, uint16_t address) {
         }
 
         if (bus->cartridge != nullptr) {
-            return bus->cartridge->cart_read(bus->cartridge, address);
+            if (bus->cartridge->cart_read != nullptr) {
+                return bus->cartridge->cart_read(bus->cartridge, address);
+            }
         }
     }
     else if (address < 0xa000) {
@@ -142,7 +148,9 @@ uint8_t gb_bus_read(gb_bus *bus, uint16_t address) {
     }
     else if (address < 0xc000) {
         if (bus->cartridge != nullptr) {
-            return bus->cartridge->cart_read(bus->cartridge, address);
+            if (bus->cartridge->cart_read != nullptr) {
+                return bus->cartridge->cart_read(bus->cartridge, address);
+            }
         }
     }
     else if (address < 0xd000) {

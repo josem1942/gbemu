@@ -9,9 +9,9 @@ const char JSON_OPCODES[] = "..\\..\\..\\..\\Downloads\\ops.json";
 const char ROM[] = "..\\..\\..\\..\\Downloads\\instr_timing.gb";
 const char BIOS[] = "E:\\bios\\gb\\dmg_boot.bin";
 #else
-const char JSON_OPCODES[] = "";
-const char ROM[] = "";
-const char BIOS[] = "";
+const char JSON_OPCODES[] = "../../../Downloads/ops.json";
+const char ROM[] = "../../../Downloads/cpu_instrs.gb";
+const char BIOS[] = "../../../Downloads/dmg_boot.bin";
 #endif
 
 int main(void) {
