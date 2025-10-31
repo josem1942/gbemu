@@ -1,5 +1,7 @@
 #include "bus.h"
 
+#include "io.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -10,11 +12,15 @@ gb_bus* gb_bus_init() {
         return nullptr;
     }
 
+    // default values
     bus->cartridge = nullptr;
-
     bus->vram_bank = 0;
     bus->wram_bank = 0;
-    bus->io[0x50] = 0;
+
+    for (int i = 0; i < 0x80; i++) {
+        bus->io[i] = 0;
+    }
+
     bus->ie = 0;
 
     return bus;
@@ -22,6 +28,11 @@ gb_bus* gb_bus_init() {
 
 void gb_bus_destroy(gb_bus *bus) {
     if (bus != nullptr) {
+        // free cartridge if inserted
+        if (bus->cartridge != nullptr) {
+            gb_cart_destroy(bus->cartridge);
+        }
+
         free(bus);
     }
 }
@@ -31,6 +42,7 @@ void gb_bus_attach_cart(gb_bus *bus, const char *rom) {
         return;
     }
 
+    // just initialize cartridge struct and load
     bus->cartridge = gb_cart_init();
     gb_cart_load(bus->cartridge, rom);
 }
@@ -41,16 +53,18 @@ void gb_bus_load_bios(gb_bus *bus, const char *bios) {
     }
 
     FILE *fp = fopen(bios, "rb");
-
     if (fp == nullptr) {
         return;
     }
 
+    // check if bios size is 256
+    // TODO: cgb bios is not 256, but bigger
     fseek(fp, 0, SEEK_END);
     if (ftell(fp) != 256) {
         return;
     }
 
+    // copy bios
     fseek(fp, 0, SEEK_SET);
     fread(bus->boot_rom, 1, 256, fp);
     fclose(fp);
@@ -92,11 +106,16 @@ void gb_bus_write(gb_bus *bus, uint16_t address, uint8_t data) {
     else if (address < 0xff80) {
         bus->io[address ^ 0xff00] = data;
 
-        if (address == 0xff02) {
-            if (data == 0x81) {
-                printf("%c", (char)bus->io[0x01]);
-                bus->io[address ^ 0xff00] &= ~0x80;
-            }
+        switch (address) {
+            case GB_IO_SC:
+                if (data == 0x81) {
+                    printf("%c", (char)bus->io[GB_IO_SB ^ 0xff00]);
+                    bus->io[address ^ 0xff00] &= ~0x80;
+                }
+                break;
+            case GB_IO_DIV:
+                bus->io[GB_IO_DIV ^ 0xff00] = 0;
+                break;
         }
     }
     else if (address < 0xffff) {
@@ -110,7 +129,7 @@ uint8_t gb_bus_read(gb_bus *bus, uint16_t address) {
     }
 
     if (address < 0x8000) {
-        if (address < 0x0100 && !bus->io[0x50] ) {
+        if (address < 0x0100 && !bus->io[0xff00 ^ GB_IO_BANK] ) {
             return bus->boot_rom[address];
         }
 

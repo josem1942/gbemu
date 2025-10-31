@@ -1,16 +1,7 @@
-#ifndef GB_CPU_H
-#define GB_CPU_H
+#ifndef CPU_H
+#define CPU_H
 
-// Master clock: 4194304 hz or 8388608 hz for CGB
-// System clock: 1048576 hz (1/4)
-// Clock 0: 4096 hz (1/1024)
-// Clock 1: 262144 hz (1/16)
-// Clock 2: 65536 hz (1/64)
-// Clock 3: 16384 hz (1/256)
-// PPU : 1 dot = 4194304 hz
-// dots remain the same regardless of cpu mode
 
-#define GB_CPU_CLOCK 1048576
 
 #define GB_CPU_FLAGS_Z (1 << 7)
 #define GB_CPU_FLAGS_N (1 << 6)
@@ -82,7 +73,7 @@ typedef struct gb_cpu_registers {
 
 // core cpu data functionality in a struct lol
 typedef struct gb_cpu_core {
-    uint64_t cycles; // keep track of all the gameboy cycles
+    uint64_t cpu_cycles; // keep track of all the gameboy cycles
     uint8_t instruction_cycles; // keeps track of the cycles of the current instruction executing.
     uint8_t skip_cycles; // used to skip any cycles if needed. mainly used to skip 1 cycle at the beginning for fetch.
 
@@ -93,16 +84,15 @@ typedef struct gb_cpu_core {
 
     gb_bus *bus; // pointer to the main system bus
 
-    uint8_t (*bus_read)(gb_bus *bus, uint16_t address); // function pointer to a read, essentially when the cpu needs to read,
-                                           // hook to a bus read.
-    void (*bus_write)(gb_bus *bus, uint16_t address, uint8_t data); // same as cpu_read but for writing, hook to a bus write.
+    uint8_t (*bus_read)(gb_bus *bus, uint16_t address); // function pointer to a bus read
+    void (*bus_write)(gb_bus *bus, uint16_t address, uint8_t data); // function pointer to a bus write
 
     gb_cpu_registers registers;
 
-    bool is_halted;
+    bool is_halted; // for halt mode
     bool ime;
-    bool enable_ime;
-    bool interrupting;
+    bool enable_ime; // ime is set after the next instruction
+    bool interrupting; // interrupt routine
 
 } gb_cpu_core;
 
@@ -110,6 +100,16 @@ typedef struct gb_cpu_core {
 // cpu - a pointer to a gb_cpu_core struct.
 // returns: 0 on success, anything else is an error.
 gb_cpu_core* gb_cpu_init();
+
+// checks if any interrupts are pending.
+// checks if both a interrupt is pending in the IF register, and if said interrupt is also enabled in the IE register.
+bool gb_cpu_interrupts_pending(gb_cpu_core *cpu, bool service);
+
+// this is an interrupt routine, treated as if it was a instruction
+void gb_cpu_interrupt(gb_cpu_core *cpu);
+
+// sets all the registers to the default value skipping the boot rom.
+void gb_cpu_skip_bootrom(gb_cpu_core *cpu);
 
 // clocks the cpu.
 // cpu - a pointer to a gb_cpu_core struct.
@@ -226,4 +226,4 @@ void gb_cpu_xor_a_n8(gb_cpu_core *cpu);
 void gb_cpu_decode_cb(gb_cpu_core *cpu, uint8_t *reg, uint8_t bit);
 void gb_cpu_cb(gb_cpu_core *cpu);
 
-#endif //GB_CPU_H
+#endif //CPU_H

@@ -16,8 +16,11 @@ add_executable(gbemu src/main.c
         src/gb/mappers/mbc0.h
         src/gb/mappers/mbc1.c
         src/gb/mappers/mbc1.h
-        src/disassemble.c
-        src/disassemble.h
-        src/cjson.h
-        src/cjson.c
+        src/cjson/cjson.h
+        src/cjson/cjson.c
+        src/gb/io.h
+        src/debug/disassembler.c
+        src/debug/disassembler.h
+        src/debug/debug.c
+        src/debug/debug.h
 )

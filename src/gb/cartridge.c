@@ -9,6 +9,7 @@
 gb_cart* gb_cart_init() {
     gb_cart *cart = malloc(sizeof(gb_cart));
 
+    // default cart values
     cart->ram_bank = 0;
     cart->ram_enabled = false;
     cart->rom_bank = 0;
@@ -29,10 +30,12 @@ void gb_cart_load(gb_cart *cart, const char *file) {
         return;
     }
 
+    // get file size
     fseek(fp, 0, SEEK_END);
     const size_t len = ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
+    // number of banks this file is gonna need
     size_t banks = len / 0x4000;
     if (len % 0x4000) {
         banks++;
@@ -43,6 +46,7 @@ void gb_cart_load(gb_cart *cart, const char *file) {
         return;
     }
 
+    // allocate banks
     for (int i = 0; i < banks; i++) {
         cart->rom[i] = malloc(0x4000);
 
@@ -51,6 +55,7 @@ void gb_cart_load(gb_cart *cart, const char *file) {
         }
     }
 
+    // start copying the rom
     for (int i = 0; i < len; i += 0x4000) {
         fread(cart->rom[i / 0x4000], 1, 0x4000, fp);
     }
@@ -60,6 +65,7 @@ void gb_cart_load(gb_cart *cart, const char *file) {
     cart->rom_len = banks;
 
     // check mbc type
+    // TODO: implement a lot of mappers
     switch (cart->rom[0][0x147]) {
         case 0x00:
             cart->cart_read = &gb_mapper_mbc0_read;
@@ -121,11 +127,23 @@ void gb_cart_load(gb_cart *cart, const char *file) {
             cart->cart_read = &gb_mapper_mbc1_read;
             cart->cart_write = &gb_mapper_mbc1_write;
             break;
+        default:
+            cart->cart_read = &gb_mapper_mbc0_read;
+            cart->cart_write = &gb_mapper_mbc0_write;
+            break;
     }
 }
 
 void gb_cart_destroy(gb_cart *cart) {
     if (cart != nullptr) {
+        for (int i = 0; i < cart->rom_len; i++) {
+            free(cart->rom[i]);
+        }
+        free(cart->rom);
 
+        for (int i = 0; i < cart->ram_len; i++) {
+            free(cart->ram[i]);
+        }
+        free(cart->ram);
     }
 }

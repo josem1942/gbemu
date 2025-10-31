@@ -2,13 +2,15 @@
 
 #include <stdlib.h>
 
+#include "io.h"
+
 gb_cpu_core* gb_cpu_init() {
     gb_cpu_core* cpu = malloc(sizeof(gb_cpu_core));
 
     if (cpu == nullptr)
         return nullptr;
 
-    cpu->cycles = 0;
+    cpu->cpu_cycles = 0;
     cpu->instruction_cycles = 0;
     cpu->skip_cycles = 1; // skip beginning fetch stage.
 
@@ -24,6 +26,7 @@ gb_cpu_core* gb_cpu_init() {
     cpu->registers.sp = 0;
     cpu->registers.pc = 0;
 
+    // defualt values
     cpu->registers.ime = false;
     cpu->is_halted = false;
     cpu->ime = false;
@@ -32,51 +35,48 @@ gb_cpu_core* gb_cpu_init() {
     return cpu;
 }
 
-bool gb_cpu_interrupts_pending(gb_cpu_core *cpu) {
-    uint8_t i_f = cpu->bus_read(cpu->bus, 0xff0f);
-    uint8_t i_e = cpu->bus_read(cpu->bus, 0xff0f);
+// checks if interrupts need to be serviced.
+// returns true if a interrupt is pending, and said interrupt is enabled
+// if service is true, then  this also resets the bit
+bool gb_cpu_interrupts_pending(gb_cpu_core *cpu, bool service) {
+    // get IF register, and IE register
+    uint8_t i_f = cpu->bus_read(cpu->bus, GB_IO_IF);
+    uint8_t i_e = cpu->bus_read(cpu->bus, GB_IO_IE);
 
+    // check for each interrupt, and if condition is true, then set the reset vector, and acknowledge interrupt.
     if (i_f & GB_CPU_INTERRUPT_VBLANK && i_e & GB_CPU_INTERRUPT_VBLANK) {
+        if (service) i_f &= ~GB_CPU_INTERRUPT_VBLANK;
+        cpu->addr_bus = 0x40;
         return true;
     }
     if (i_f & GB_CPU_INTERRUPT_LCD && i_e & GB_CPU_INTERRUPT_LCD) {
+        if (service) i_f &= ~GB_CPU_INTERRUPT_LCD;
+        cpu->addr_bus = 0x48;
         return true;
     }
     if (i_f & GB_CPU_INTERRUPT_TIMER && i_e & GB_CPU_INTERRUPT_TIMER) {
+        if (service) i_f &= ~GB_CPU_INTERRUPT_TIMER;
+        cpu->addr_bus = 0x50;
         return true;
     }
     if (i_f & GB_CPU_INTERRUPT_SERIAL && i_e & GB_CPU_INTERRUPT_SERIAL) {
+        if (service) i_f &= ~GB_CPU_INTERRUPT_SERIAL;
+        cpu->addr_bus = 0x58;
         return true;
     }
     if (i_f & GB_CPU_INTERRUPT_JOYPAD && i_e & GB_CPU_INTERRUPT_JOYPAD) {
+        if (service) i_f &= ~GB_CPU_INTERRUPT_JOYPAD;
+        cpu->addr_bus = 0x60;
         return true;
     }
 
     return false;
 }
 
+// push pc to the stack, and go to handler
 void gb_cpu_interrupt(gb_cpu_core *cpu) {
     if (cpu->instruction_cycles == 0) {
         cpu->ime = false;
-        uint8_t i_f = cpu->bus_read(cpu->bus, 0xff0f);
-        uint8_t i_e = cpu->bus_read(cpu->bus, 0xff0f);
-
-        if (i_f & GB_CPU_INTERRUPT_VBLANK && i_e & GB_CPU_INTERRUPT_VBLANK) {
-            cpu->addr_bus = 0x40;
-        }
-        else if (i_f & GB_CPU_INTERRUPT_LCD && i_e & GB_CPU_INTERRUPT_LCD) {
-            cpu->addr_bus = 0x48;
-        }
-        else if (i_f & GB_CPU_INTERRUPT_TIMER && i_e & GB_CPU_INTERRUPT_TIMER) {
-            cpu->addr_bus = 0x50;
-        }
-        else if (i_f & GB_CPU_INTERRUPT_SERIAL && i_e & GB_CPU_INTERRUPT_SERIAL) {
-            cpu->addr_bus = 0x58;
-        }
-        else if (i_f & GB_CPU_INTERRUPT_JOYPAD && i_e & GB_CPU_INTERRUPT_JOYPAD) {
-            cpu->addr_bus = 0x60;
-        }
-
         cpu->instruction_cycles++;
     }
     else if (cpu->instruction_cycles == 1) {
@@ -99,34 +99,58 @@ void gb_cpu_interrupt(gb_cpu_core *cpu) {
     }
 }
 
+void gb_cpu_skip_bootrom(gb_cpu_core *cpu) {
+    // TODO: implement this
+    cpu->registers.a = 0x01;
+    cpu->registers.f = 0x80;
+    cpu->registers.b = 0x00;
+    cpu->registers.c = 0x13;
+    cpu->registers.d = 0x00;
+    cpu->registers.e = 0xd8;
+    cpu->registers.h = 0x01;
+    cpu->registers.l = 0x4d;
+    cpu->registers.pc = 0x0100;
+    cpu->registers.sp = 0xfffe;
+}
+
 void gb_cpu_clock(gb_cpu_core *cpu) {
     if (cpu == nullptr)
         return;
 
-    cpu->cycles++;
+    cpu->cpu_cycles++;
 
+    // skip any cycles if needed
     if (cpu->skip_cycles > 0) {
         cpu->skip_cycles--;
         return;
     }
 
+    // run interrupt routine if it is in one
     if (cpu->interrupting) {
         gb_cpu_interrupt(cpu);
         return;
     }
 
+    // execute instructions
     gb_cpu_execute(cpu);
 
+    // instruction was on its last machine cycle
     if (cpu->instruction_cycles == 0) {
-        if (gb_cpu_interrupts_pending(cpu) && cpu->ime) {
-            cpu->interrupting = true;
-            gb_cpu_interrupt(cpu);
-            return;
+
+        // if we have any interrupts, then service them
+        if (cpu->ime) {
+            if (gb_cpu_interrupts_pending(cpu, true)) {
+                cpu->interrupting = true;
+                gb_cpu_interrupt(cpu);
+                return;
+            }
         }
 
+        // else fetch the next opcode
         cpu->opcode = cpu->bus_read(cpu->bus, cpu->registers.pc);
         cpu->registers.pc++;
 
+        // TODO: verify this?
         if (cpu->enable_ime) {
             cpu->enable_ime = false;
             cpu->ime = true;
