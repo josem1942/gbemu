@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../cjson/cjson.h"
+#include <cjson/cJSON.h>
 
 disasm_opcodes* disasm_init(const char *file) {
     // open file
