@@ -481,3 +481,5 @@ http-client.private.env.json
 .idea/.cache/.Apifox_Helper
 .idea/ApifoxUploaderProjectSetting.xml
 
+!/src/debug
+!/src/debug/*
