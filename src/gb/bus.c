@@ -22,6 +22,7 @@ gb_bus* gb_bus_init() {
     }
 
     bus->ie = 0;
+    bus->dma_transfer = false;
 
     return bus;
 }
@@ -116,6 +117,12 @@ void gb_bus_write(gb_bus *bus, uint16_t address, uint8_t data) {
                     printf("%c", (char)bus->io[GB_IO_SB ^ 0xff00]);
                     bus->io[address ^ 0xff00] &= ~0x80;
                 }
+                break;
+            case GB_IO_DMA:
+                bus->dma_lo = 0;
+                bus->dma_hi = data;
+                bus->dma_transfer = true;
+                bus->io[address ^ 0xff00] = data;
                 break;
             case GB_IO_DIV:
                 bus->io[GB_IO_DIV ^ 0xff00] = 0;

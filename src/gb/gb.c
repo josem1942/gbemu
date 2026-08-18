@@ -37,6 +37,19 @@ gb_gameboy* gb_gameboy_init() {
 void gb_gameboy_clock_master(gb_gameboy *gb) {
     // cpu clocked at GB_CLOCK_CPU hz
     if (gb->master_cycles % GB_CLOCK_CPU_DIV == 0) {
+        // dma transfer copies every machine cycle
+        if (gb->bus->dma_transfer) {
+            if (gb->bus->dma_lo < 0xa0) {
+                uint8_t data = gb_bus_read(gb->bus, gb->bus->dma_hi << 8 | gb->bus->dma_lo);
+
+                gb_bus_write(gb->bus, 0xfe00 | gb->bus->dma_lo, data);
+                gb->bus->dma_lo++;
+            }
+            else {
+                gb->bus->dma_transfer = false;
+            }
+        }
+
         gb_cpu_clock(gb->cpu);
     }
 
@@ -84,6 +97,13 @@ void gb_gameboy_clock_cpu(gb_gameboy *gb) {
         gb_gameboy_clock_master(gb);
     }
     while (gb->master_cycles % GB_CLOCK_CPU_DIV != 0);
+}
+
+void gb_gameboy_clock_frame(gb_gameboy *gb) {
+    do {
+        gb_gameboy_clock_master(gb);
+    }
+    while (gb->master_cycles % GB_CLOCK_PPU_FRAME != 0);
 }
 
 void gb_gameboy_load_bootrom(gb_gameboy *gb, const char *bios) {

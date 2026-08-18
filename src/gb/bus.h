@@ -23,6 +23,10 @@ typedef struct gb_bus {
 
     uint8_t ie;
 
+    bool dma_transfer;
+    uint8_t dma_hi;
+    uint8_t dma_lo;
+
 } gb_bus;
 
 // initialize the struct with some default values if needed

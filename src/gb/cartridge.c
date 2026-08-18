@@ -12,7 +12,7 @@ gb_cart* gb_cart_init() {
     // default cart values
     cart->ram_bank = 0;
     cart->ram_enabled = false;
-    cart->rom_bank = 0;
+    cart->rom_bank = 1;
     cart->mbc = 0;
     cart->ram_len = 0;
     cart->rom_len = 0;
@@ -72,8 +72,8 @@ void gb_cart_load(gb_cart *cart, const char *file) {
             cart->cart_write = &gb_mapper_mbc0_write;
             break;
         case 0x01:
-            cart->cart_read = &gb_mapper_mbc1_read;
-            cart->cart_write = &gb_mapper_mbc1_write;
+            cart->cart_read = &gb_mapper_mbc0_read;
+            cart->cart_write = &gb_mapper_mbc0_write;
             break;
         case 0x02:
         case 0x03:

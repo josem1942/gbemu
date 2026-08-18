@@ -26,7 +26,7 @@ gb_cpu_core* gb_cpu_init() {
     cpu->registers.sp = 0;
     cpu->registers.pc = 0;
 
-    // defualt values
+    // default values
     cpu->registers.ime = false;
     cpu->is_halted = false;
     cpu->ime = false;
@@ -96,6 +96,8 @@ void gb_cpu_interrupt(gb_cpu_core *cpu) {
         cpu->registers.pc = cpu->addr_bus;
         cpu->interrupting = false;
         cpu->instruction_cycles = 0;
+        cpu->opcode = cpu->bus_read(cpu->bus, cpu->registers.pc);
+        cpu->registers.pc++;
     }
 }
 
@@ -111,6 +113,8 @@ void gb_cpu_skip_bootrom(gb_cpu_core *cpu) {
     cpu->registers.l = 0x4d;
     cpu->registers.pc = 0x0100;
     cpu->registers.sp = 0xfffe;
+
+    cpu->bus_write(cpu->bus, GB_IO_BANK, 1);
 }
 
 void gb_cpu_clock(gb_cpu_core *cpu) {
@@ -1926,7 +1930,7 @@ void gb_cpu_cb(gb_cpu_core* cpu) {
         gb_cpu_decode_cb(cpu, reg, bit);
         cpu->bus_write(cpu->bus, cpu->registers.hl, result);
 
-        if (cpu->data_bus & 0b01000000) { // bit only takes 3 cycles instead of 4
+        if ((cpu->data_bus & 0b11000000) == 0b01000000) { // bit only takes 3 cycles instead of 4
             cpu->instruction_cycles = 0;
             return;
         }
